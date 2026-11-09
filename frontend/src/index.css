@@ -298,28 +298,30 @@ code.ocr { font-family: ui-monospace, Consolas, monospace; font-size: 0.82rem; b
 .chip button.link { margin-left: 6px; }
 
 /* newsletters */
-.newsletter-layout { display: grid; grid-template-columns: minmax(230px, 320px) minmax(0, 1fr); gap: 14px; min-height: 620px; }
-.newsletter-list { padding: 6px; display: flex; flex-direction: column; gap: 4px; align-self: start; }
-.newsletter-list > p { padding: 10px; }
-.newsletter-list button { border: 0; background: transparent; text-align: left; border-radius: 8px; padding: 11px; display: grid; gap: 3px; color: var(--text); }
-.newsletter-list button:hover, .newsletter-list button.on { background: var(--bg); }
-.newsletter-list button.on { box-shadow: inset 3px 0 0 var(--accent); }
-.newsletter-list button span, .newsletter-list button small { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.newsletter-thread { display: flex; flex-direction: column; min-width: 0; padding: 0; }
-.newsletter-thread > header { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
-.newsletter-thread h3, .newsletter-thread header p { margin: 0; }
-.newsletter-messages { padding: 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; max-height: 55vh; overflow-y: auto; }
-.newsletter-messages article { max-width: min(680px, 86%); padding: 11px 13px; border-radius: 10px; background: var(--bg); align-self: flex-start; }
-.newsletter-messages article.mine { align-self: flex-end; background: var(--info-bg); }
-.newsletter-messages article > div { display: flex; gap: 16px; justify-content: space-between; font-size: .8rem; }
-.newsletter-messages time { color: var(--muted); }
-.newsletter-messages p { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-.newsletter-reply { border-top: 1px solid var(--border); padding: 14px 16px; }
-.newsletter-reply textarea { width: 100%; }
-@media (max-width: 760px) {
-  .newsletter-layout { grid-template-columns: 1fr; min-height: 0; }
-  .newsletter-list { max-height: 240px; overflow-y: auto; }
-  .newsletter-messages { max-height: 50vh; }
+.newsletter-page-head { align-items: flex-end; }
+.newsletter-page-head h2 { margin: 4px 0; font-size: 2rem; letter-spacing: -.025em; }
+.newsletter-kicker { color: var(--accent); font-size: .76rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.newsletter-feed { display: flex; flex-direction: column; gap: 18px; max-width: 900px; }
+.newsletter-announcement { padding: 0; overflow: hidden; box-shadow: 0 8px 28px rgb(0 0 0 / .06); }
+.newsletter-announcement.latest { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.newsletter-announcement > header { display: flex; align-items: center; gap: 11px; padding: 16px 20px; border-bottom: 1px solid var(--border); background: color-mix(in srgb, var(--surface) 94%, var(--accent)); }
+.newsletter-author-mark { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--accent-text); font-weight: 750; }
+.newsletter-byline { display: grid; line-height: 1.25; }
+.newsletter-byline span { color: var(--muted); font-size: .8rem; }
+.newsletter-audience { margin-left: auto; border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px; font-size: .76rem; font-weight: 650; }
+.newsletter-audience.everyone { background: var(--info-bg); color: var(--accent); border-color: transparent; }
+.newsletter-content { padding: 26px 28px 30px; }
+.newsletter-content h3 { margin: 5px 0 14px; font-size: 1.45rem; letter-spacing: -.015em; }
+.newsletter-content p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; font-size: 1rem; }
+.newsletter-latest { color: var(--accent); font-size: .74rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.newsletter-empty { min-height: 260px; display: grid; place-items: center; align-content: center; text-align: center; }
+.newsletter-empty > span { color: var(--accent); font-size: 2rem; }
+.newsletter-empty h3, .newsletter-empty p { margin: 5px; }
+.newsletter-compose textarea { line-height: 1.55; }
+@media (max-width: 600px) {
+  .newsletter-announcement > header { align-items: flex-start; flex-wrap: wrap; }
+  .newsletter-audience { margin-left: 49px; }
+  .newsletter-content { padding: 20px; }
 }
 .savebar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; padding: 10px 24px;

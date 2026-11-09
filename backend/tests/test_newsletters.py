@@ -10,32 +10,37 @@ def create_user(client, admin, email, name):
     return response.json(), auth_headers(client, email, "studentpass123")
 
 
-def test_professor_student_newsletter_and_replies(client, admin, user):
-    me = client.get("/api/auth/me", headers=user).json()
+def test_professor_publishes_to_everyone(client, admin, user):
     created = client.post("/api/newsletters", headers=admin, json={
         "subject": "Exam preparation",
         "body": "Please review chapters 4 and 5.",
-        "recipient_user_id": me["id"],
+        "audience_all": True,
     })
     assert created.status_code == 201, created.text
-    thread = created.json()
-    assert thread["recipient"]["email"] == "jane@test.io"
-    assert thread["messages"][0]["body"] == "Please review chapters 4 and 5."
+    item = created.json()
+    assert item["audience_all"] is True
+    assert item["group"] is None
+    assert item["creator"]["email"] == "admin@test.io"
+    assert item["messages"][0]["body"] == "Please review chapters 4 and 5."
+    assert [n["id"] for n in client.get("/api/newsletters", headers=user).json()] == [item["id"]]
 
-    listed = client.get("/api/newsletters", headers=user)
-    assert [item["id"] for item in listed.json()] == [thread["id"]]
+
+def test_only_professors_can_publish_or_reply(client, admin, user):
+    denied = client.post("/api/newsletters", headers=user, json={
+        "subject": "Student announcement", "body": "Not allowed", "audience_all": True,
+    })
+    assert denied.status_code == 403
+    item = client.post("/api/newsletters", headers=admin, json={
+        "subject": "Read only", "body": "Official announcement", "audience_all": True,
+    }).json()
     reply = client.post(
-        f"/api/newsletters/{thread['id']}/messages", headers=user,
-        json={"body": "I have finished both chapters."},
+        f"/api/newsletters/{item['id']}/messages", headers=user, json={"body": "A reply"}
     )
-    assert reply.status_code == 201
-    assert [message["author"]["email"] for message in reply.json()["messages"]] == [
-        "admin@test.io", "jane@test.io"
-    ]
+    assert reply.status_code == 405
 
 
 def test_group_newsletter_is_only_visible_to_members(client, admin, user):
-    bob, bob_headers = create_user(client, admin, "bob@test.io", "Bob")
+    _, bob_headers = create_user(client, admin, "bob@test.io", "Bob")
     jane_id = client.get("/api/auth/me", headers=user).json()["id"]
     group = client.post("/api/admin/groups", headers=admin, json={
         "name": "Group A", "member_ids": [jane_id]
@@ -44,30 +49,14 @@ def test_group_newsletter_is_only_visible_to_members(client, admin, user):
         "subject": "Room change", "body": "Tomorrow we meet in room 204.", "group_id": group["id"]
     })
     assert created.status_code == 201
-    thread_id = created.json()["id"]
-
-    assert client.get(f"/api/newsletters/{thread_id}", headers=user).status_code == 200
-    assert client.get(f"/api/newsletters/{thread_id}", headers=bob_headers).status_code == 404
-    assert client.post(
-        f"/api/newsletters/{thread_id}/messages", headers=bob_headers, json={"body": "Not allowed"}
-    ).status_code == 404
-
-    reply = client.post(
-        f"/api/newsletters/{thread_id}/messages", headers=user, json={"body": "Thank you!"}
-    )
-    assert reply.status_code == 201 and len(reply.json()["messages"]) == 2
+    item = created.json()
+    assert item["audience_all"] is False and item["group"]["name"] == "Group A"
+    assert client.get(f"/api/newsletters/{item['id']}", headers=user).status_code == 200
+    assert client.get(f"/api/newsletters/{item['id']}", headers=bob_headers).status_code == 404
 
 
-def test_student_can_contact_professor_but_not_another_student(client, admin, user):
-    bob, _ = create_user(client, admin, "bob@test.io", "Bob")
-    recipients = client.get("/api/newsletters/recipients", headers=user).json()
-    professor_id = recipients["users"][0]["id"]
-    assert recipients["users"][0]["email"] == "admin@test.io"
-    assert client.post("/api/newsletters", headers=user, json={
-        "subject": "Question", "body": "Could you clarify the assignment?",
-        "recipient_user_id": professor_id,
-    }).status_code == 201
-    assert client.post("/api/newsletters", headers=user, json={
-        "subject": "Wrong", "body": "Student to student is not a newsletter channel.",
-        "recipient_user_id": bob["id"],
-    }).status_code == 403
+def test_newsletter_requires_everyone_or_group(client, admin):
+    response = client.post("/api/newsletters", headers=admin, json={
+        "subject": "Missing audience", "body": "No audience selected"
+    })
+    assert response.status_code == 422

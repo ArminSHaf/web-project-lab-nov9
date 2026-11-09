@@ -323,13 +323,13 @@ class NewsletterRecipient(BaseModel):
 class NewsletterCreate(BaseModel):
     subject: str = Field(min_length=1, max_length=200)
     body: str = Field(min_length=1, max_length=5000)
-    recipient_user_id: int | None = None
+    audience_all: bool = False
     group_id: int | None = None
 
     @model_validator(mode="after")
     def one_audience(self):
-        if (self.recipient_user_id is None) == (self.group_id is None):
-            raise ValueError("Choose exactly one student/professor or group")
+        if self.audience_all == (self.group_id is not None):
+            raise ValueError("Choose everyone or exactly one group")
         return self
 
 
@@ -352,6 +352,7 @@ class NewsletterThreadOut(ORM):
     creator: UserBrief
     recipient: UserBrief | None
     group: GroupBrief | None
+    audience_all: bool
     messages: list[NewsletterMessageOut]
 
 

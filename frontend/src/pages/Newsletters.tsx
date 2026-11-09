@@ -1,129 +1,86 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { api, fmt, json, type NewsletterRecipients, type NewsletterThread } from '../api'
 import { useAuth } from '../auth'
 import { ErrorNote, Modal } from '../components'
 
 export default function Newsletters() {
   const { user } = useAuth()
-  const [threads, setThreads] = useState<NewsletterThread[] | null>(null)
-  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [items, setItems] = useState<NewsletterThread[] | null>(null)
   const [recipients, setRecipients] = useState<NewsletterRecipients>({ users: [], groups: [] })
   const [composing, setComposing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async (preferred?: number) => {
-    try {
-      const items = await api<NewsletterThread[]>('/newsletters')
-      setThreads(items)
-      setSelectedId((current) => preferred ?? current ?? items[0]?.id ?? null)
-    } catch (e) { setError((e as Error).message) }
+  const load = useCallback(() => {
+    api<NewsletterThread[]>('/newsletters').then(setItems).catch((e) => setError(e.message))
   }, [])
-
   useEffect(() => {
     load()
-    api<NewsletterRecipients>('/newsletters/recipients').then(setRecipients).catch((e) => setError(e.message))
-  }, [load])
-
-  const selected = useMemo(() => threads?.find((item) => item.id === selectedId) ?? null, [threads, selectedId])
-  const audience = (thread: NewsletterThread) => thread.group
-    ? thread.group.name
-    : thread.creator.id === user?.id
-      ? thread.recipient?.full_name ?? 'Direct newsletter'
-      : thread.creator.full_name
+    if (user?.role === 'admin') {
+      api<NewsletterRecipients>('/newsletters/recipients').then(setRecipients).catch((e) => setError(e.message))
+    }
+  }, [load, user?.role])
 
   return (
     <>
-      <div className="page-head">
-        <div><h2>Newsletters</h2><p className="muted small">Direct professor–student messages and group conversations.</p></div>
-        <button className="primary" onClick={() => setComposing(true)}>+ New newsletter</button>
+      <div className="page-head newsletter-page-head">
+        <div>
+          <span className="newsletter-kicker">Class updates</span>
+          <h2>Newsletters</h2>
+          <p className="muted">Official announcements from your professors.</p>
+        </div>
+        {user?.role === 'admin' && <button className="primary" onClick={() => setComposing(true)}>Publish newsletter</button>}
       </div>
       <ErrorNote error={error} />
-      <div className="newsletter-layout">
-        <aside className="card newsletter-list" aria-label="Newsletter conversations">
-          {threads === null && <p className="muted">Loading…</p>}
-          {threads?.length === 0 && <p className="muted">No newsletters yet. Start a direct or group conversation.</p>}
-          {threads?.map((thread) => (
-            <button key={thread.id} className={selectedId === thread.id ? 'on' : ''} onClick={() => setSelectedId(thread.id)}>
-              <strong>{thread.subject}</strong>
-              <span>{thread.group ? 'Group' : 'Direct'} · {audience(thread)}</span>
-              <small>{fmt(thread.updated_at)}</small>
-            </button>
-          ))}
-        </aside>
-        <section className="card newsletter-thread">
-          {selected ? (
-            <>
-              <header>
-                <div><h3>{selected.subject}</h3><p className="muted small">{selected.group ? `Group · ${selected.group.name}` : `Direct · ${audience(selected)}`}</p></div>
-                <span className="badge">{selected.messages.length} message{selected.messages.length === 1 ? '' : 's'}</span>
-              </header>
-              <div className="newsletter-messages">
-                {selected.messages.map((message) => (
-                  <article key={message.id} className={message.author.id === user?.id ? 'mine' : ''}>
-                    <div><strong>{message.author.id === user?.id ? 'You' : message.author.full_name}</strong><time>{fmt(message.created_at)}</time></div>
-                    <p>{message.body}</p>
-                  </article>
-                ))}
-              </div>
-              <ReplyForm threadId={selected.id} onSent={() => load(selected.id)} />
-            </>
-          ) : <div className="center muted">Select a newsletter to read it.</div>}
-        </section>
-      </div>
-      {composing && <Compose recipients={recipients} onClose={() => setComposing(false)} onCreated={(id) => { setComposing(false); load(id) }} />}
+      <section className="newsletter-feed" aria-label="Published newsletters">
+        {items === null && <div className="card muted">Loading newsletters…</div>}
+        {items?.length === 0 && <div className="card newsletter-empty"><span aria-hidden="true">✦</span><h3>No announcements yet</h3><p className="muted">New newsletters from professors will appear here.</p></div>}
+        {items?.map((newsletter, index) => {
+          const message = newsletter.messages[0]
+          return <article key={newsletter.id} className={`card newsletter-announcement ${index === 0 ? 'latest' : ''}`}>
+            <header>
+              <div className="newsletter-author-mark" aria-hidden="true">{newsletter.creator.full_name.charAt(0).toUpperCase()}</div>
+              <div className="newsletter-byline"><strong>{newsletter.creator.full_name}</strong><span>Professor · {fmt(newsletter.created_at)}</span></div>
+              <span className={`newsletter-audience ${newsletter.audience_all ? 'everyone' : ''}`}>{newsletter.audience_all ? 'Everyone' : newsletter.group?.name ?? 'Group'}</span>
+            </header>
+            <div className="newsletter-content">
+              {index === 0 && <span className="newsletter-latest">Latest announcement</span>}
+              <h3>{newsletter.subject}</h3>
+              <p>{message?.body}</p>
+            </div>
+          </article>
+        })}
+      </section>
+      {composing && <Compose recipients={recipients} onClose={() => setComposing(false)} onCreated={() => { setComposing(false); load() }} />}
     </>
   )
 }
 
-function ReplyForm({ threadId, onSent }: { threadId: number; onSent: () => void }) {
-  const [body, setBody] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [sending, setSending] = useState(false)
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    if (!body.trim()) return
-    setSending(true); setError(null)
-    try {
-      await api(`/newsletters/${threadId}/messages`, json('POST', { body: body.trim() }))
-      setBody(''); onSent()
-    } catch (err) { setError((err as Error).message) }
-    finally { setSending(false) }
-  }
-  return <form className="newsletter-reply" onSubmit={submit}>
-    <label>Reply<textarea required maxLength={5000} rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write a reply…" /></label>
-    <ErrorNote error={error} />
-    <div className="row end"><button className="primary" disabled={sending || !body.trim()}>{sending ? 'Sending…' : 'Send reply'}</button></div>
-  </form>
-}
-
-function Compose({ recipients, onClose, onCreated }: {
-  recipients: NewsletterRecipients; onClose: () => void; onCreated: (id: number) => void
-}) {
-  const [audience, setAudience] = useState(recipients.users[0] ? `user:${recipients.users[0].id}` : recipients.groups[0] ? `group:${recipients.groups[0].id}` : '')
+function Compose({ recipients, onClose, onCreated }: { recipients: NewsletterRecipients; onClose: () => void; onCreated: () => void }) {
+  const [audience, setAudience] = useState('all')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [publishing, setPublishing] = useState(false)
+
   const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    const [kind, rawId] = audience.split(':')
-    if (!rawId) { setError('Choose a recipient or group.'); return }
+    e.preventDefault(); setPublishing(true); setError(null)
     try {
-      const payload = { subject: subject.trim(), body: body.trim(), ...(kind === 'user' ? { recipient_user_id: Number(rawId) } : { group_id: Number(rawId) }) }
-      const created = await api<NewsletterThread>('/newsletters', json('POST', payload))
-      onCreated(created.id)
-    } catch (err) { setError((err as Error).message) }
+      const payload = audience === 'all'
+        ? { subject: subject.trim(), body: body.trim(), audience_all: true }
+        : { subject: subject.trim(), body: body.trim(), group_id: Number(audience.split(':')[1]) }
+      await api('/newsletters', json('POST', payload)); onCreated()
+    } catch (err) { setError((err as Error).message); setPublishing(false) }
   }
-  return <Modal title="New newsletter" onClose={onClose}>
-    <form className="form" onSubmit={submit}>
-      <label>Send to<select required value={audience} onChange={(e) => setAudience(e.target.value)}>
-        {!audience && <option value="">No recipients available</option>}
-        {recipients.users.length > 0 && <optgroup label="People">{recipients.users.map((person) => <option key={`u${person.id}`} value={`user:${person.id}`}>{person.full_name} · {person.email}</option>)}</optgroup>}
-        {recipients.groups.length > 0 && <optgroup label="Groups">{recipients.groups.map((group) => <option key={`g${group.id}`} value={`group:${group.id}`}>{group.name}</option>)}</optgroup>}
-      </select></label>
-      <label>Subject<input required maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} /></label>
-      <label>Message<textarea required maxLength={5000} rows={7} value={body} onChange={(e) => setBody(e.target.value)} /></label>
+
+  return <Modal title="Publish a newsletter" onClose={onClose}>
+    <form className="form newsletter-compose" onSubmit={submit}>
+      <p className="info">Students can read published newsletters but cannot create or reply to them.</p>
+      <label>Audience<select required value={audience} onChange={(e) => setAudience(e.target.value)}><option value="all">Everyone</option>{recipients.groups.map((group) => <option key={group.id} value={`group:${group.id}`}>Group · {group.name}</option>)}</select></label>
+      <label>Headline<input required maxLength={200} value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Important class update" /></label>
+      <label>Announcement<textarea required maxLength={5000} rows={10} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Write the newsletter announcement…" /></label>
+      <div className="small muted">{body.length} / 5000 characters</div>
       <ErrorNote error={error} />
-      <div className="row end"><button type="button" onClick={onClose}>Cancel</button><button className="primary">Send newsletter</button></div>
+      <div className="row end"><button type="button" onClick={onClose}>Cancel</button><button className="primary" disabled={publishing}>{publishing ? 'Publishing…' : 'Publish newsletter'}</button></div>
     </form>
   </Modal>
 }

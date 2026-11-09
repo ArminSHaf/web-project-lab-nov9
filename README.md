@@ -25,11 +25,11 @@ Deployment using GitHub Pages for the frontend and ngrok on a Windows PC for the
 - export the current filter as **CSV** or **Excel**
 - see who has not checked in for an event
 
-**Newsletters** support two-way communication:
-- professors can send a direct newsletter to a student and the student can reply
-- students can start a direct conversation with a professor
-- professors and members can publish to their groups, with replies visible only to that group
-- access is enforced by direct participation or current group membership
+**Newsletters** are official, one-way professor announcements:
+- only professors/admins can publish
+- a newsletter can be sent to everyone or to one managed group
+- students see announcements for everyone plus their current groups
+- students cannot create newsletters or reply to them
 
 ## Quick start (Docker)
 

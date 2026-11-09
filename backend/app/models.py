@@ -174,8 +174,8 @@ class NewsletterThread(Base):
     __tablename__ = "newsletter_threads"
     __table_args__ = (
         CheckConstraint(
-            "(recipient_user_id IS NOT NULL AND group_id IS NULL) OR "
-            "(recipient_user_id IS NULL AND group_id IS NOT NULL)",
+            "(audience_all = true AND group_id IS NULL AND recipient_user_id IS NULL) OR "
+            "(audience_all = false AND group_id IS NOT NULL AND recipient_user_id IS NULL)",
             name="ck_newsletter_exactly_one_audience",
         ),
     )
@@ -187,6 +187,7 @@ class NewsletterThread(Base):
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
     group_id: Mapped[int | None] = mapped_column(ForeignKey("groups.id", ondelete="CASCADE"), index=True)
+    audience_all: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 

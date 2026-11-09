@@ -192,6 +192,7 @@ export interface NewsletterThread {
   creator: { id: number; email: string; full_name: string }
   recipient: { id: number; email: string; full_name: string } | null
   group: GroupBrief | null
+  audience_all: boolean
   messages: NewsletterMessage[]
 }
 
