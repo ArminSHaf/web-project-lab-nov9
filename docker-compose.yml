@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: attendance
+      POSTGRES_USER: attendance
+      POSTGRES_PASSWORD: attendance-dev-only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U attendance -d attendance"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+psycopg://attendance:attendance-dev-only@db:5432/attendance
+      JWT_SECRET: dev-only-jwt-secret-not-for-production-7f3a9c
+      CODE_SECRET: dev-only-code-secret-not-for-production-b81e4d
+      ACCESS_TOKEN_MINUTES: 30
+      # Development only. Give this to professors so they can create accounts; change it for any real deployment.
+      PROFESSOR_SIGNUP_CODE: professor-dev-only
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  uploads:
