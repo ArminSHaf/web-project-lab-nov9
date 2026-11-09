@@ -13,6 +13,7 @@ import Login from './pages/Login'
 import MyEvents from './pages/MyEvents'
 import MyHistory from './pages/MyHistory'
 import Newsletters from './pages/Newsletters'
+import Polls from './pages/Polls'
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
             <Route element={<Layout />}>
               <Route path="/account" element={<Account />} />
               <Route path="/newsletters" element={<Newsletters />} />
+              <Route path="/polls" element={<Polls />} />
               <Route element={<RequireAuth role="user" />}>
                 <Route path="/" element={<MyEvents />} />
                 <Route path="/check-in/:eventId" element={<CheckIn />} />

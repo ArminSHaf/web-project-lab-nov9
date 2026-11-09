@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Table,
@@ -213,3 +214,51 @@ class NewsletterMessage(Base):
 
     thread: Mapped[NewsletterThread] = relationship(back_populates="messages")
     author: Mapped[User] = relationship()
+
+
+poll_groups = Table(
+    "poll_groups",
+    Base.metadata,
+    Column("poll_id", ForeignKey("polls.id", ondelete="CASCADE"), primary_key=True),
+    Column("group_id", ForeignKey("groups.id", ondelete="CASCADE"), primary_key=True, index=True),
+)
+
+
+class Poll(Base):
+    __tablename__ = "polls"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    subject: Mapped[str] = mapped_column(String(200))
+    is_open: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    groups: Mapped[list[Group]] = relationship(secondary=poll_groups, lazy="selectin")
+    options: Mapped[list["PollOption"]] = relationship(
+        back_populates="poll", cascade="all, delete-orphan", passive_deletes=True,
+        lazy="selectin", order_by="PollOption.id",
+    )
+
+
+class PollOption(Base):
+    __tablename__ = "poll_options"
+    __table_args__ = (UniqueConstraint("id", "poll_id", name="uq_poll_option_id_poll"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    poll_id: Mapped[int] = mapped_column(ForeignKey("polls.id", ondelete="CASCADE"), index=True)
+    label: Mapped[str] = mapped_column(String(200))
+    poll: Mapped[Poll] = relationship(back_populates="options")
+
+
+class PollVote(Base):
+    __tablename__ = "poll_votes"
+    __table_args__ = (
+        UniqueConstraint("poll_id", "user_id", name="uq_poll_vote_poll_user"),
+        ForeignKeyConstraint(
+            ["option_id", "poll_id"], ["poll_options.id", "poll_options.poll_id"],
+            name="fk_poll_vote_option_poll", ondelete="CASCADE",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    poll_id: Mapped[int] = mapped_column(ForeignKey("polls.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    option_id: Mapped[int] = mapped_column(Integer, index=True)

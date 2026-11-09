@@ -23,12 +23,14 @@ export function Layout() {
           ['/admin/users', 'Users'],
           ['/admin/groups', 'Groups'],
           ['/newsletters', 'Newsletters'],
+          ['/polls', 'Voting'],
           ['/account', 'Account'],
         ]
       : [
           ['/', 'Events'],
           ['/history', 'My attendance'],
           ['/newsletters', 'Newsletters'],
+          ['/polls', 'Voting'],
           ['/account', 'Account'],
         ]
   return (
